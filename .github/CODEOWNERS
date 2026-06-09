@@ -1,0 +1,8 @@
+# Code owners are auto-requested for review on matching paths — this backs the
+# review gate in CONTRIBUTING.md (step 3) and the "non-author reviewer" merge gate.
+# Last matching pattern wins. Docs: https://docs.github.com/articles/about-code-owners
+
+# Default owner for everything — replace, or scope by area:
+*           @{{OWNER}}
+# /server/   @{{backend-owner}}
+# /client/   @{{frontend-owner}}

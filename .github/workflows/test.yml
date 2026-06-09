@@ -1,0 +1,35 @@
+# Full test suite — runs on every push and pull request.
+# This is the gate CONTRIBUTING.md refers to: keep it green.
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Replace this block with your stack's setup + steps ---------------
+      # Example (Node):
+      # - uses: actions/setup-node@v4
+      #   with:
+      #     node-version: 20
+      #     cache: npm
+      # - run: npm ci
+      # - run: npm run lint
+      # - run: npm test
+      #
+      # Example (Python):
+      # - uses: actions/setup-python@v5
+      #   with:
+      #     python-version: "3.12"
+      # - run: pip install -e ".[dev]"
+      # - run: ruff check .
+      # - run: pytest
+      # ---------------------------------------------------------------------
+
+      - name: placeholder
+        run: echo "Replace with real build/lint/test steps."

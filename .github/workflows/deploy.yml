@@ -1,0 +1,59 @@
+# OPT-IN deploy ladder. Disabled by default so plain libraries don't carry dead CI.
+#
+# To enable: uncomment the `on:` triggers below and fill in the deploy steps.
+# The opinionated convention this encodes:
+#   - PR draft -> "ready for review"  => deploy to BETA
+#   - merge to the default branch      => deploy to PROD
+#   (Alternative beta trigger some teams prefer: on PR review *approval* instead of
+#    ready-for-review. Swap `types: [ready_for_review]` for a review-approval check.)
+#
+# Patterns worth keeping (see comments inline):
+#   - BUILD IN CI, SHIP PREBUILT ARTIFACTS. The deploy target needs no toolchain,
+#     git, or checkout — just receive the built bundle and apply it. Skew-safe:
+#     build-before-publish means a half-built artifact never reaches the target.
+#   - OPPOSITE CONCURRENCY POLICIES. Beta cancels in-flight runs (newest wins);
+#     prod lets every run settle (never cancel a production rollout midway).
+#   - AUTH VIA WORKLOAD IDENTITY FEDERATION (OIDC), not long-lived static keys.
+#   - PR-SCOPED CACHE KEYS so PR-author code can't poison the shared/prod cache.
+#
+# name: deploy
+#
+# on:
+#   pull_request:
+#     types: [ready_for_review]   # BETA
+#   push:
+#     branches: [main]            # PROD
+#
+# permissions:
+#   contents: read
+#   id-token: write               # required for Workload Identity Federation (OIDC)
+#
+# jobs:
+#   beta:
+#     if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+#     runs-on: ubuntu-latest
+#     environment: beta
+#     concurrency:
+#       group: beta-${{ github.ref }}
+#       cancel-in-progress: true        # newest approved change wins beta
+#     steps:
+#       - uses: actions/checkout@v4
+#       # - build artifact here, with a PR-scoped cache key, e.g.:
+#       #     key: build-pr-${{ github.event.pull_request.number }}-${{ hashFiles(...) }}
+#       # - authenticate via WIF (google-github-actions/auth, OIDC) — no static keys
+#       - name: deploy-beta
+#         run: echo "Ship prebuilt artifact to beta target."
+#
+#   prod:
+#     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+#     runs-on: ubuntu-latest
+#     environment: production
+#     concurrency:
+#       group: prod
+#       cancel-in-progress: false       # let every prod deploy finish
+#     steps:
+#       - uses: actions/checkout@v4
+#       # - build artifact here (prod cache key, not PR-scoped)
+#       # - authenticate via WIF (OIDC)
+#       - name: deploy-prod
+#         run: echo "Ship prebuilt artifact to prod target."
