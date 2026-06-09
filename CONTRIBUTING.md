@@ -36,8 +36,10 @@ It gets squashed/rebased on merge, so optimize for momentum and clean up the fin
 PR. Commit names should be a 1 liner with bullet points as necessary. They're the
 branch's working memory, so make each a purposeful unit — the code change, then its tests.
 
-Each push runs the **full suite** via Actions ([`test.yml`](./.github/workflows/test.yml)) —
-a green run is the gate out of step 2. Run focused local checks for tight iteration:
+Each push runs the suite for the **areas it touched** via Actions
+([`test.yml`](./.github/workflows/test.yml)) — a green **`ci`** is the gate out of step 2.
+(Root/shared changes run every area; the squash merge re-runs the full diff.) Run focused
+local checks for tight iteration:
 
 | Change touches… | Run locally |
 |-----------------|-------------|
@@ -67,9 +69,8 @@ becomes the squash-merge message:
 
 Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
 
-**Only once CI is green** flip **draft → ready for review** — the map's green edge,
-which also deploys beta for step 4 (if the deploy ladder is enabled). Self-review
-the diff first, then fill out the PR body — GitHub prefills it from
+**Only once CI is green** flip **draft → ready for review** — the map's green edge.
+Self-review the diff first, then fill out the PR body — GitHub prefills it from
 [`PULL_REQUEST_TEMPLATE.md`](./.github/PULL_REQUEST_TEMPLATE.md): the title carries
 what changed, the issue the why, green CI that it works — so the body holds only what
 none of those do (decisions, open questions, known gaps).
@@ -82,12 +83,13 @@ Then work the review loop:
   the **fixing commit SHA** and resolve the thread.
 - Re-request review after substantive changes — each new commit warrants a fresh look.
 
-Changes requested loops back to commit (step 2); approval advances to QA (step 4).
+Changes requested loops back to commit (step 2); approval advances to QA (step 4),
+deploying beta (if the deploy ladder is enabled) for QA to run against.
 
 ### 4. QA
 
 A human tests the actual functionality before merging — on the beta deploy, if it's
-set up (step 3 ships it). A bug found loops back to commit (step 2); sign-off is the
+set up (approval ships it). A bug found loops back to commit (step 2); sign-off is the
 go-ahead to merge.
 
 ### 5. Merge

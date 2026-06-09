@@ -1,35 +1,86 @@
-# Full test suite — runs on every push and pull request.
-# This is the gate CONTRIBUTING.md refers to: keep it green.
+# Full test suite — the gate CONTRIBUTING.md refers to (the green edge out of step 2,
+# Commit). Runs on every push; keep it green.
+#
+# PATH-SCOPED BY AREA. A cheap `changes` job detects which areas a push touched; each
+# area job runs only if its files (or shared/root config) changed. This mirrors the
+# folder-scoped guidelines split (client/, server/ — see AGENTS.md): the same boundary
+# that scopes guidelines scopes compute. Aggressive scoping is safe because the squash
+# merge to main is a full-diff push that re-runs every touched area before prod —
+# "defer compute up the cost curve" (CONTRIBUTING) applied to area scope.
+#
+# LANGUAGE-NAIVE BY DESIGN. The routing below is pure globs; the build/test COMMANDS in
+# each area job are placeholders — fill them with your stack (cargo/pytest/npm/go). Add
+# an area by copying a filter + its job; delete one you don't have.
 name: test
 
 on:
+  # push only, no `pull_request`: tests must gate every push to every branch so the
+  # step-2 gate works during commit iteration, before a draft PR exists. A PR surfaces
+  # these same commit-status checks on its head SHA, so adding `pull_request` would only
+  # double-run each push. (Branch-based flow per CONTRIBUTING; fork PRs would need a
+  # `pull_request` trigger, since their pushes land on the fork, not here.)
   push:
-  pull_request:
 
 jobs:
-  test:
+  # 1) Detect which areas changed. `shared` covers root/cross-cutting files (lockfiles,
+  #    shared libs, CI itself) that can break ANY area — it forces every area to run.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      client: ${{ steps.filter.outputs.client }}
+      server: ${{ steps.filter.outputs.server }}
+      shared: ${{ steps.filter.outputs.shared }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # On push, paths-filter diffs the pushed range; on the merge-to-main push it
+          # diffs the whole squashed change, so every touched area lights up at the gate.
+          filters: |
+            client:
+              - 'client/**'
+            server:
+              - 'server/**'
+            shared:
+              - '.github/workflows/**'
+              - '{{root lockfile, e.g. package-lock.json / Cargo.lock / go.sum}}'
+              - '{{shared/ — code imported across areas}}'
+
+  # 2) One job per area: build + test ONLY that area, gated on the filter (or `shared`).
+  client:
+    needs: changes
+    if: ${{ needs.changes.outputs.client == 'true' || needs.changes.outputs.shared == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # --- Replace this block with your stack's setup + steps ---------------
-      # Example (Node):
-      # - uses: actions/setup-node@v4
-      #   with:
-      #     node-version: 20
-      #     cache: npm
-      # - run: npm ci
-      # - run: npm run lint
-      # - run: npm test
-      #
-      # Example (Python):
-      # - uses: actions/setup-python@v5
-      #   with:
-      #     python-version: "3.12"
-      # - run: pip install -e ".[dev]"
-      # - run: ruff check .
-      # - run: pytest
-      # ---------------------------------------------------------------------
-
+      # --- {{client}} setup + build + test ----------------------------------
+      # e.g. actions/setup-node@v4 (cache: npm) -> npm ci -> npm run lint -> npm test
       - name: placeholder
-        run: echo "Replace with real build/lint/test steps."
+        run: echo "Replace with {{client}} build + test."
+
+  server:
+    needs: changes
+    if: ${{ needs.changes.outputs.server == 'true' || needs.changes.outputs.shared == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # --- {{server}} setup + build + test ----------------------------------
+      # e.g. actions/setup-python@v5 -> pip install -e ".[dev]" -> ruff check . -> pytest
+      - name: placeholder
+        run: echo "Replace with {{server}} build + test."
+
+  # 3) Single aggregation gate. Make THIS the only required status check in branch
+  #    protection — never the area jobs, which legitimately skip on unrelated changes
+  #    (a required job that skips never reports, and the PR deadlocks). Passes unless an
+  #    area job FAILED or was cancelled; a skipped area is fine.
+  ci:
+    needs: [changes, client, server]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: verdict
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "A required area job failed or was cancelled."
+          exit 1

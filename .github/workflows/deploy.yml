@@ -2,10 +2,10 @@
 #
 # To enable: uncomment the `on:` triggers below and fill in the deploy steps.
 # The opinionated convention this encodes:
-#   - PR draft -> "ready for review"  => deploy to BETA
+#   - reviewer approval on the PR      => deploy to BETA (QA runs against it)
 #   - merge to the default branch      => deploy to PROD
-#   (Alternative beta trigger some teams prefer: on PR review *approval* instead of
-#    ready-for-review. Swap `types: [ready_for_review]` for a review-approval check.)
+#   (Alternative beta trigger some teams prefer: on "ready for review" instead of
+#    approval — swap the `pull_request_review` trigger for `pull_request: types: [ready_for_review]`.)
 #
 # Patterns worth keeping (see comments inline):
 #   - BUILD IN CI, SHIP PREBUILT ARTIFACTS. The deploy target needs no toolchain,
@@ -19,8 +19,8 @@
 # name: deploy
 #
 # on:
-#   pull_request:
-#     types: [ready_for_review]   # BETA
+#   pull_request_review:
+#     types: [submitted]          # BETA — guarded on approval in the job `if`
 #   push:
 #     branches: [main]            # PROD
 #
@@ -30,14 +30,16 @@
 #
 # jobs:
 #   beta:
-#     if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+#     if: github.event_name == 'pull_request_review' && github.event.review.state == 'approved'
 #     runs-on: ubuntu-latest
 #     environment: beta
 #     concurrency:
-#       group: beta-${{ github.ref }}
+#       group: beta-pr-${{ github.event.pull_request.number }}   # per-PR; review events' github.ref is the base branch
 #       cancel-in-progress: true        # newest approved change wins beta
 #     steps:
 #       - uses: actions/checkout@v4
+#         with:
+#           ref: ${{ github.event.review.commit_id }}   # ship exactly the SHA that was approved, not a later push
 #       # - build artifact here, with a PR-scoped cache key, e.g.:
 #       #     key: build-pr-${{ github.event.pull_request.number }}-${{ hashFiles(...) }}
 #       # - authenticate via WIF (google-github-actions/auth, OIDC) — no static keys
