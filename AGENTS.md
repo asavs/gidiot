@@ -130,6 +130,18 @@ templates, or the orchestrator's behavior. Any executor behind the seam must sat
 Current implementation: opencode + a fast code model. Its exact command — and tool-specific
 quirks like flag ordering — lives in `run-agent.sh`, not here.
 
+**Isolation.** Every run happens in its own branch or git worktree — never the shared
+working tree. The executor edits files and runs commands unattended (skip-permissions is
+only safe contained), so a rejected run must cost one cleanup, not manual unwinding.
+Everything the run produces — the executor's iterations, the draft PR, and any orchestrator
+corrections — stays on that one branch:
+
+```bash
+git worktree add ../run-<id> -b agent/<id>   # isolated checkout for the run
+# … dispatch the executor here …
+git worktree remove ../run-<id>              # discard a rejected run in one step
+```
+
 **Two loops the executor runs inside.**
 
 1. *Local loop (cheap):* implement → lint + focused tests → fix → repeat to green.

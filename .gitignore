@@ -26,6 +26,9 @@ out/
 coverage/
 .cache/
 
+# --- Agent run logs (headless executor output) ------------------------------
+.agent-runs/
+
 # --- Editor / OS -------------------------------------------------------------
 .DS_Store
 Thumbs.db
