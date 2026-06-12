@@ -115,21 +115,20 @@ How the **orchestration tier** dispatches the **execution tier** and supervises 
 never reads it; it works only from its implementation-instructions plus the
 folder-scoped GUIDELINES for the files it touches.
 
-**Dispatch (headless).** The executor runs without a TUI so it can be driven and its
-output read:
+**Dispatch goes through the executor seam, `run-agent.sh`** — the single place a concrete
+executor tool is named, so the executor is swappable without touching this doc, the spec
+templates, or the orchestrator's behavior. Any executor behind the seam must satisfy this
+**contract**:
 
-```bash
-opencode run "<directive>" \
-  --agent build -m opencode/north-mini-code-free \
-  --dangerously-skip-permissions -f <implementation-instructions.md> \
-  > .agent-runs/<id>.log 2>&1
-```
+- **headless** — no TUI; driven by argument/stdin, results to stdout
+- **input** — an implementation-instructions file plus a directive
+- **isolation** — runs inside a per-run branch/worktree (it edits files and runs commands unattended)
+- **capture** — stdout+stderr to `.agent-runs/<id>.log` (gitignored)
+- **exit** — `0` when the local gate is green; non-zero (or a "stuck" report) signals escalation
+- **continue** — can resume the same run for a correction, so the orchestrator sends a fix without a cold restart
 
-- Put `<directive>` **before** the flags — `-f` is an array flag and will otherwise
-  swallow a trailing positional as a filename.
-- Run inside a per-run branch/worktree; `--dangerously-skip-permissions` is only safe
-  isolated. Capture stdout+stderr to `.agent-runs/<id>.log` (gitignored).
-- Exit `0` = the executor reached its local gate green; non-zero or a "stuck" report = escalate.
+Current implementation: opencode + a fast code model. Its exact command — and tool-specific
+quirks like flag ordering — lives in `run-agent.sh`, not here.
 
 **Two loops the executor runs inside.**
 
@@ -147,8 +146,8 @@ opencode run "<directive>" \
 - It escalates with a **distilled report** — what was tried, the persistent failure
   signature, its hypothesis — never a transcript.
 - The orchestrator's cheapest reply is a corrected micro-instruction into the *same*
-  session (`opencode run -c`). It escalates up to the intent tier only when the
-  implementation cannot satisfy the spec — i.e. the intent-spec itself is wrong.
+  run (the executor's continue mechanism). It escalates up to the intent tier only when
+  the implementation cannot satisfy the spec — i.e. the intent-spec itself is wrong.
 - Gates after green, cheap → costly: local gate → CI → adversarial review → human QA + merge.
 
 ## Common issues & gotchas
