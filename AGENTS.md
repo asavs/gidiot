@@ -108,6 +108,49 @@ How to move through the workflow without stepping on toes:
 - Record what you learn where it's scoped: repo-wide facts in this file,
   area-specific ones in that area's `GUIDELINES.md`.
 
+## Running the agent loop
+
+How the **orchestration tier** dispatches the **execution tier** and supervises it
+(roles: see **Agent stack**). This section is read by the upper tiers — the executor
+never reads it; it works only from its implementation-instructions plus the
+folder-scoped GUIDELINES for the files it touches.
+
+**Dispatch (headless).** The executor runs without a TUI so it can be driven and its
+output read:
+
+```bash
+opencode run "<directive>" \
+  --agent build -m opencode/north-mini-code-free \
+  --dangerously-skip-permissions -f <implementation-instructions.md> \
+  > .agent-runs/<id>.log 2>&1
+```
+
+- Put `<directive>` **before** the flags — `-f` is an array flag and will otherwise
+  swallow a trailing positional as a filename.
+- Run inside a per-run branch/worktree; `--dangerously-skip-permissions` is only safe
+  isolated. Capture stdout+stderr to `.agent-runs/<id>.log` (gitignored).
+- Exit `0` = the executor reached its local gate green; non-zero or a "stuck" report = escalate.
+
+**Two loops the executor runs inside.**
+
+1. *Local loop (cheap):* implement → lint + focused tests → fix → repeat to green.
+   Nitpick/lint churn stays here, off CI.
+2. *CI loop (bounded):* after local-green, push a draft PR and read Actions (the Linux
+   verdict). A few push→read→fix cycles are fine; a failure that is green locally but
+   red on CI is its own class → straight to the orchestrator.
+
+**Escalate on non-convergence, not first failure.**
+
+- The executor keeps fixing while the failing set shrinks; it escalates only when
+  progress stalls (failing set stops shrinking for K cycles; a hard cap of N attempts
+  is a runaway backstop, not the normal trigger).
+- It escalates with a **distilled report** — what was tried, the persistent failure
+  signature, its hypothesis — never a transcript.
+- The orchestrator's cheapest reply is a corrected micro-instruction into the *same*
+  session (`opencode run -c`). It escalates up to the intent tier only when the
+  implementation cannot satisfy the spec — i.e. the intent-spec itself is wrong.
+- Gates after green, cheap → costly: local gate → CI → adversarial review → human QA + merge.
+
 ## Common issues & gotchas
 
 <!-- The non-obvious things that have bitten people: flaky tests, env quirks,
