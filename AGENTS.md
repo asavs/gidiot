@@ -3,13 +3,50 @@
 The brief for **AI agents** working in this repo. It holds what an agent can't
 derive by reading the code, plus the execution norms that keep agents from tripping.
 
-- **Workflow:** read [CONTRIBUTING.md](./CONTRIBUTING.md) — from your seat, you're
-  either writing issues or writing commits.
+- **Workflow & roles:** read [CONTRIBUTING.md](./CONTRIBUTING.md), then find your seat
+  in the **Agent stack** (below) — every contributor occupies exactly one tier of it.
 - Before editing an area, read its guideline (see **Folder-scoped guidelines**).
 
 This is the **single source of truth** for agent instructions; tool-specific files
 (`CLAUDE.md`, `GEMINI.md`, `.cursor/rules/*`, `.github/copilot-instructions.md`)
 point here rather than duplicating it. Keep one source; generate or symlink the rest.
+
+## Agent stack
+
+Work here flows through five **roles**, ordered by cost of effort. Each tier exists to
+conserve the scarcer resource in the tier above it: cheap labor absorbs lint/CI thrash so
+expensive labor never pays for it — the labor analogue of the fail-cheap gate ladder in
+[CONTRIBUTING.md](./CONTRIBUTING.md). Roles are primary; the tools filling them today are a
+swappable example.
+
+| Tier | Role | Input → output | Authors (owns) | Today |
+|------|------|----------------|----------------|-------|
+| 1 | **Intent / translation** | a human's fuzzy wants → precise engineering intent | **milestones**, issues, **intent-specs** | Claude |
+| 2 | **Orchestration** | intent-spec → step-by-step implementation; supervises the executor | **implementation-instructions**, **PR-cluster / branch choice** | Codex |
+| 3 | **Execution** | implementation-instructions → code that passes the gate | commits (the diff) | a fast code model (e.g. opencode + north-mini) |
+| 4 | **Adversarial review** | a green PR → defects / objections | the review verdict | Gemini |
+| 5 | **QA + merge** | a reviewed PR → shipped | the merge decision | a human |
+
+**Artifact ownership is load-bearing** — it's where tokens leak if the tiers blur:
+
+- **Milestones** are phase gates, authored by **tier 1**. Lower tiers work *inside* a
+  milestone's scope; they never author one.
+- **PR clusters** are a *different axis* from milestones — what a human can review and QA as
+  one coherent decision — authored by **tier 2**. A milestone groups by capability and spans
+  many PRs; a PR cluster groups by shared QA surface. Don't conflate them (see the PR-scope
+  guidance in [CONTRIBUTING.md](./CONTRIBUTING.md)).
+- **Specs come in two levels:** the **intent-spec** (tier 1 → tier 2 — the *what & why*) and
+  the **implementation-instructions** (tier 2 → tier 3 — the *how*), templated at
+  [`.github/INTENT_SPEC_TEMPLATE.md`](./.github/INTENT_SPEC_TEMPLATE.md) and
+  [`.github/IMPL_INSTRUCTIONS_TEMPLATE.md`](./.github/IMPL_INSTRUCTIONS_TEMPLATE.md).
+- **Supervision is cheap by construction:** the implement → test → fix loop lives in the
+  executor's own session, so the orchestrator spends nothing per cycle and wakes only on a
+  terminal state — green, or a distilled "stuck" report. Escalate on *non-convergence*, not
+  on first failure.
+
+QA happens at the **PR**, never at the milestone: QA needs runnable code, and the only
+runnable unit is a merge. A milestone closing is just a rollup of PRs that were each already
+QA'd — there is no separate "milestone QA" event.
 
 ## Essential facts
 
