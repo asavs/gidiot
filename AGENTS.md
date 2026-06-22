@@ -156,6 +156,12 @@ so dispatch is deterministic regardless of which branch the invoking checkout si
 `run-agent.sh` takes `--base <ref>` and defaults to the repo's protected default branch;
 pass it explicitly to base a run on a feature branch.
 
+**Frozen dependency install.** When a run needs dependencies inside its worktree, install
+with a frozen-lockfile command (`npm ci`, `pip install -r … --require-hashes`, etc.) — never
+a mutating one (`npm install`). A mutating install rewrites the lockfile and adds an
+unintended file to the run's diff that review must catch and strip; the run's diff must stay
+the intended files only.
+
 **Two loops the executor runs inside.**
 
 1. *Local loop (cheap):* implement → lint + focused tests → fix → repeat to green.

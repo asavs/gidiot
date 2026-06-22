@@ -11,7 +11,9 @@ do not restate its intent.
 **Intent-spec:** <path or link>   <!-- the WHAT/WHY this expands; points back to the issue -->
 
 ## Files & steps (in order)
-<!-- ordered and concrete: each step names a file and the exact edit/creation to make -->
+<!-- ordered and concrete: each step names a file and the exact edit/creation to make.
+If a step installs dependencies, use the frozen-lockfile form (`npm ci`, not `npm install`)
+so the run's diff stays the intended files only — a mutating install rewrites the lockfile. -->
 1.
 2.
 
