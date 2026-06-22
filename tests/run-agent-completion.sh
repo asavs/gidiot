@@ -59,9 +59,17 @@ run_case() {
     local name="$1"
     local mode="$2"
     local reason="$3"
-    local expected_exit="$4"
+    local tool_calls="$4"
+    local expected_exit="$5"
     local session="$tmp/$name-session.json"
-    printf '{"type":"step-finish","reason":"%s","modelID":"north-mini-code-free"}\n' "$reason" > "$session"
+    printf '[' > "$session"
+    {
+        printf '{"type":"step-finish","reason":"%s","modelID":"north-mini-code-free"}\n' "$reason"
+        if [ "$tool_calls" = "yes" ]; then
+            printf ',{"type":"tool","tool":"bash"}\n'
+        fi
+    } >> "$session"
+    printf ']\n' >> "$session"
     cleanup_case_worktree "$name"
 
     set +e
@@ -88,7 +96,8 @@ run_case() {
 }
 
 test_prefix="runner-test-$$"
-run_case "$test_prefix-length" no-change length 4
-run_case "$test_prefix-stop" success stop 0
+run_case "$test_prefix-length" no-change length no 4
+run_case "$test_prefix-generic-stop" success stop no 7
+run_case "$test_prefix-action-stop" success stop yes 0
 
 echo "run-agent completion checks passed"

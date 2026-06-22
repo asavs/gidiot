@@ -141,6 +141,10 @@ quirks live in `run-agent.sh`, not here — notably that options must precede th
 (opencode parses the variadic message positional before flags, so a trailing flag is
 swallowed as prompt text and the run silently falls back to the default model), and on
 Windows the worktree must sit under an OpenCode-allowed external path (`%LOCALAPPDATA%\Temp\opencode`).
+On native Git Bash, verify that provider path end-to-end with
+`bash tests/north-mini-smoke.sh`: it runs the exact seam against
+`north-mini-code-free`, requires an exported tool call and committed sentinel, and leaves
+the isolated worktree/log available when the provider ignores the directive.
 
 **Isolation.** Every run happens in its own branch or git worktree — never the shared
 working tree. The executor edits files and runs commands unattended (skip-permissions is
