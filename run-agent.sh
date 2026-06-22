@@ -64,10 +64,15 @@ git worktree add "$repo_root/../run-$run_id" -b "agent/$run_id" "$base_ref"
 cd "$repo_root/../run-$run_id"
 echo "RUN $run_id: worktree branched from base ref '$base_ref'"
 
-mkdir -p .agent-runs
-log="$(realpath .agent-runs)/$run_id.log"
+# The seam owns the run log: write it to the main checkout, outside the
+# executor's worktree, so a correction (run -c) running inside the worktree
+# cannot delete or truncate it. Append, never overwrite, so the prior run's
+# record survives each correction.
+log_dir="$repo_root/.agent-runs"
+mkdir -p "$log_dir"
+log="$log_dir/$run_id.log"
 
-if "$EXECUTOR_CMD" run "$directive" --agent "$EXECUTOR_AGENT" -m "$EXECUTOR_MODEL" --dangerously-skip-permissions -f "$abs_impl" > "$log" 2>&1; then
+if "$EXECUTOR_CMD" run "$directive" --agent "$EXECUTOR_AGENT" -m "$EXECUTOR_MODEL" --dangerously-skip-permissions -f "$abs_impl" >> "$log" 2>&1; then
     exit_code=0
 else
     exit_code=$?
