@@ -121,16 +121,23 @@ templates, or the orchestrator's behavior. Any executor behind the seam must sat
 **contract**:
 
 - **headless** — no TUI; driven by argument/stdin, results to stdout
-- **input** — an implementation-instructions file plus a directive
+- **input** — an implementation-instructions file plus a directive. The seam places the
+  instructions inside the worktree (executors may not accept file attachments) and the
+  directive reads them from there
 - **isolation** — runs inside a per-run branch/worktree (it edits files and runs commands unattended)
+- **assert** — the seam verifies the run dispatched the intended model (e.g. from exported
+  session metadata) and fails the wrapper on mismatch; a green gate on the wrong model is a failed run
 - **capture** — stdout+stderr to `.agent-runs/<id>.log` (gitignored), written by the seam
   in the main checkout (outside the worktree) and appended, so the executor cannot delete or
   truncate its own run log during a correction
 - **exit** — `0` when the local gate is green; non-zero (or a "stuck" report) signals escalation
 - **continue** — can resume the same run for a correction, so the orchestrator sends a fix without a cold restart
 
-Current implementation: opencode + a fast code model. Its exact command — and tool-specific
-quirks like flag ordering — lives in `run-agent.sh`, not here.
+Current implementation: opencode + a fast code model. Its exact command and tool-specific
+quirks live in `run-agent.sh`, not here — notably that options must precede the directive
+(opencode parses the variadic message positional before flags, so a trailing flag is
+swallowed as prompt text and the run silently falls back to the default model), and on
+Windows the worktree must sit under an OpenCode-allowed external path (`%LOCALAPPDATA%\Temp\opencode`).
 
 **Isolation.** Every run happens in its own branch or git worktree — never the shared
 working tree. The executor edits files and runs commands unattended (skip-permissions is

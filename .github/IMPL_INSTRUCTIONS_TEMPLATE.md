@@ -1,8 +1,9 @@
 <!--
 Implementation-instructions — written by the orchestration tier (see AGENTS.md
-"Agent stack"), fed to the executor via `opencode run -f`. Captures HOW, step by step,
-precisely enough to execute without judgment. Lazy-point to the intent-spec; do not
-restate its intent.
+"Agent stack"). The seam hands this file to the executor inside the run worktree
+(at .agent-input/<id>.md) and the directive reads it from there. Captures HOW, step
+by step, precisely enough to execute without judgment. Lazy-point to the intent-spec;
+do not restate its intent.
 -->
 
 # Implementation-instructions: <short title>
@@ -18,7 +19,9 @@ restate its intent.
 <!-- non-obvious decisions already made for the executor, so it makes no judgment calls -->
 
 ## Local gate (converge to green before pushing)
-<!-- the exact command the executor loops on: lint + focused tests. CI is the final verdict. -->
+<!-- the exact command the executor loops on: lint + focused tests. CI is the final verdict.
+Use POSIX paths relative to $PWD (the worktree root); never `cd` to a Windows C:\ path —
+the worktree lives at an OS temp path and absolute drive paths break the gate. -->
 ```bash
 <command>
 ```
