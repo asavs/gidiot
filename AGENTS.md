@@ -123,7 +123,9 @@ templates, or the orchestrator's behavior. Any executor behind the seam must sat
 - **headless** — no TUI; driven by argument/stdin, results to stdout
 - **input** — an implementation-instructions file plus a directive
 - **isolation** — runs inside a per-run branch/worktree (it edits files and runs commands unattended)
-- **capture** — stdout+stderr to `.agent-runs/<id>.log` (gitignored)
+- **capture** — stdout+stderr to `.agent-runs/<id>.log` (gitignored), written by the seam
+  in the main checkout (outside the worktree) and appended, so the executor cannot delete or
+  truncate its own run log during a correction
 - **exit** — `0` when the local gate is green; non-zero (or a "stuck" report) signals escalation
 - **continue** — can resume the same run for a correction, so the orchestrator sends a fix without a cold restart
 
