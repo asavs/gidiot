@@ -26,8 +26,19 @@ the worktree lives at an OS temp path and absolute drive paths break the gate. -
 <command>
 ```
 
+## Commit (on success)
+<!-- Committing the work is part of the run, not a follow-up: the executor does not commit
+unless told to. Name the files to stage and the message; an uncommitted tree is an
+incomplete run. -->
+```bash
+git add <files this run created/modified>
+git commit -m "<type>(<scope>): <imperative summary>"
+```
+
 ## Reminders
 - Make the smallest change that satisfies the intent-spec; do not refactor uninvited.
 - Honor the folder-scoped GUIDELINES for any area you touch.
+- A run is complete only when its intended changes are committed — an uncommitted (or
+  partially committed) worktree is an incomplete run, not a finished one.
 - If you cannot converge, emit a distilled failure report (what was tried, the persistent
   failure signature, your hypothesis) and stop — do not thrash past the cap.
