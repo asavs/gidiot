@@ -82,6 +82,7 @@ fi
 
 repo_root="$(git rev-parse --show-toplevel)"
 : "${base_ref:=$(detect_default_branch)}"
+runner_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # OpenCode only permits worktrees under specific allowed external paths; on
 # Windows that is %LOCALAPPDATA%\Temp\opencode. Build a POSIX path so the
@@ -95,6 +96,7 @@ mkdir -p "$run_base"
 worktree="$run_base/run-$run_id"
 
 git worktree add "$worktree" -b "agent/$run_id" "$base_ref"
+base_commit="$(git -C "$worktree" rev-parse HEAD)"
 cd "$worktree"
 echo "RUN $run_id: worktree '$worktree' branched from base ref '$base_ref'"
 
@@ -154,10 +156,40 @@ if [ "$resolved_model" != "$expected_model" ]; then
     exit 3
 fi
 
-if [ $exit_code -eq 0 ]; then
-    echo "RUN $run_id: success (local gate green, model '$resolved_model'). Review: $worktree"
-    exit 0
-else
+if [ $exit_code -ne 0 ]; then
     echo "RUN $run_id: stuck - distilled report in $log"
     exit $exit_code
 fi
+
+# OpenCode can exit 0 even when the agent reaches a terminal failure such as a
+# reasoning-length cap. The exported session is the authoritative completion
+# signal; only a normal `stop` is allowed to advance to completion checks.
+terminal_reason="$(bash "$runner_dir/scripts/session-terminal-reason.sh" "$session_json" 2>/dev/null || true)"
+if [ "$terminal_reason" != "stop" ]; then
+    echo "RUN $run_id: FAIL - terminal session reason '${terminal_reason:-<none>}' is not success" >&2
+    echo "  session: ${sid:-<none matched title '$session_title'>} | metadata: $session_json | log: $log" >&2
+    echo "  OpenCode process exit 0 does not override a terminal agent failure." >&2
+    exit 4
+fi
+
+# Implementation instructions require an intentional commit. A clean process
+# exit without a new commit means the executor stopped before delivering work.
+head_commit="$(git -C "$worktree" rev-parse HEAD)"
+if [ "$head_commit" = "$base_commit" ]; then
+    echo "RUN $run_id: FAIL - executor reported success but created no commit" >&2
+    echo "  base/head: $base_commit | worktree: $worktree | log: $log" >&2
+    exit 5
+fi
+
+# The seam's worktree-local instruction file is deliberately untracked. Any
+# other residual entry is an incomplete or partially committed run.
+residual_status="$(git -C "$worktree" status --porcelain --untracked-files=all \
+    | grep -v -E '^\?\? \.agent-input(/|$)' || true)"
+if [ -n "$residual_status" ]; then
+    echo "RUN $run_id: FAIL - executor left uncommitted worktree changes" >&2
+    echo "$residual_status" >&2
+    echo "  worktree: $worktree | log: $log" >&2
+    exit 6
+fi
+
+echo "RUN $run_id: success (terminal reason '$terminal_reason', committed work, model '$resolved_model'). Review: $worktree"
