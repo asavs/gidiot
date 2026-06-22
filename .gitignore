@@ -29,6 +29,9 @@ coverage/
 # --- Agent run logs (headless executor output) ------------------------------
 .agent-runs/
 
+# --- Agent run input (worktree-local implementation-instructions) -----------
+.agent-input/
+
 # --- Editor / OS -------------------------------------------------------------
 .DS_Store
 Thumbs.db
