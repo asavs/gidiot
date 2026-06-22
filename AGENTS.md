@@ -127,6 +127,9 @@ templates, or the orchestrator's behavior. Any executor behind the seam must sat
 - **isolation** — runs inside a per-run branch/worktree (it edits files and runs commands unattended)
 - **assert** — the seam verifies the run dispatched the intended model (e.g. from exported
   session metadata) and fails the wrapper on mismatch; a green gate on the wrong model is a failed run
+- **complete** — the seam accepts success only when the exported session ends normally, the
+  executor has made its required commit, and the worktree is clean apart from seam-owned input;
+  a zero process exit after a length/error terminal reason is a failed run
 - **capture** — stdout+stderr to `.agent-runs/<id>.log` (gitignored), written by the seam
   in the main checkout (outside the worktree) and appended, so the executor cannot delete or
   truncate its own run log during a correction
