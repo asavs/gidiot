@@ -137,10 +137,15 @@ Everything the run produces — the executor's iterations, the draft PR, and any
 corrections — stays on that one branch:
 
 ```bash
-git worktree add ../run-<id> -b agent/<id>   # isolated checkout for the run
+git worktree add ../run-<id> -b agent/<id> <base>   # isolated checkout for the run
 # … dispatch the executor here …
-git worktree remove ../run-<id>              # discard a rejected run in one step
+git worktree remove ../run-<id>                      # discard a rejected run in one step
 ```
+
+**Base ref.** The run branches from an explicit base, not the operator's current HEAD,
+so dispatch is deterministic regardless of which branch the invoking checkout sits on.
+`run-agent.sh` takes `--base <ref>` and defaults to the repo's protected default branch;
+pass it explicitly to base a run on a feature branch.
 
 **Two loops the executor runs inside.**
 
