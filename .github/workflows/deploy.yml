@@ -1,3 +1,13 @@
+name: deploy
+on:
+  workflow_dispatch:        # manual-only; no automatic deploys until configured
+jobs:
+  deploy-not-configured:
+    if: ${{ false }}        # never runs until you wire real triggers from the recipes below
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deploy ladder not configured — see comments below."
+
 # OPT-IN deploy ladder. Disabled by default so plain libraries don't carry dead CI.
 #
 # ACTIONS IS THE DEPLOY BUILDER your laptop isn't. It compiles the iOS archive on a
