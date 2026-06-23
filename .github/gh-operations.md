@@ -2,7 +2,7 @@
 
 How to drive `gh` / `gh api` per GitHub primitive — so an agent authoring issues,
 milestones, dependencies, and the Project board can do it without re-deriving the
-mechanics. The proven gotchas from the #11/#27 dogfood live here, not in a transcript.
+mechanics. The proven gotchas from dogfooding it on a live repo live here, not in a transcript.
 
 Replace `{owner}/{repo}` with the target repo (or rely on `gh`'s repo inference).
 

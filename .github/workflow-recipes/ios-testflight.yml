@@ -7,7 +7,7 @@
 # THE POINT: you do not need a Mac to ship iOS. A Windows/Linux laptop pushes Swift;
 # macos-latest compiles, tests, archives, and uploads to TestFlight. Actions IS your Mac.
 #
-# Reference shape: asavschaeffer/heard-iOS (stable iOS gate, repo-owned test script,
+# Reference shape: a Swift/iOS app (stable iOS gate, repo-owned test script,
 # .xcresult summaries/artifacts, TestFlight deploy).
 
 # ---------------------------------------------------------------------------
@@ -20,7 +20,7 @@ ios-test:
     - uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: latest-stable     # pin to '{{16.x}}' once a version is chosen
-    # Own the test command in-repo so CI and local run the SAME lane (#20: exercise
+    # Own the test command in-repo so CI and local run the SAME lane (exercise
     # the artifact, not only syntax). e.g. scripts/test-ios.sh stable
     - name: test (stable lane)
       run: ./scripts/test-ios.sh stable  # xcodebuild test -resultBundlePath build/Tests.xcresult

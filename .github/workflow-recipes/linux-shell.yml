@@ -25,7 +25,7 @@ shell-ci:
       run: |
         for f in tests/fixtures/**/*.json; do jq empty "$f"; done
 
-    # Run focused fixture/smoke tests that exercise the REAL behavior (#20), not syntax
+    # Run focused fixture/smoke tests that exercise the REAL behavior, not syntax
     # alone. Capture logs so a failure is debuggable without reproducing the Linux env.
     - name: fixture / smoke tests
       run: |
