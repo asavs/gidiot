@@ -27,7 +27,7 @@ build:
         npm run typecheck
         npm run lint
         npm test
-        npm run build                      # emits dist/ — the deploy artifact (#20)
+        npm run build                      # emits dist/ — the deploy artifact
     - uses: actions/upload-artifact@v4     # hand dist/ to the deploy workflow
       with:
         name: dist

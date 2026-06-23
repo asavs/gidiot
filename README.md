@@ -27,7 +27,7 @@ place — show, don't list.}}
 
 3. **Lazy pointers.** Each fact has one home, and everything else points to it with a gist, so a reader dereferences only when the gist falls short. Same within a doc: reference what the title, issue, diff, or CI already holds instead of restating it.
 
-4. **Naive stack, built around agents.** A yolo'd agent clears tests and review (goobreview, greptile, coderabbit); you take QA and merge.
+4. **Naive stack, built around agents.** A yolo'd agent clears tests and review (greptile, coderabbit); you take QA and merge.
 
 ## Install
 

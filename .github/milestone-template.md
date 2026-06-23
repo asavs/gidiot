@@ -8,7 +8,7 @@ GitHub won't enforce this; copy the shape by hand when you create the milestone.
 ## What a phase-gate milestone is
 
 A milestone here is a **phase gate**, not a deadline. It **closes when its issues
-close** — never on a due date (leave the date empty; see issue #1). It groups work by
+close** — never on a due date (leave the date empty). It groups work by
 *capability* (what becomes true when the phase lands), and it spans many PRs. QA happens
 at each PR, not at the milestone — closing it is just the rollup.
 

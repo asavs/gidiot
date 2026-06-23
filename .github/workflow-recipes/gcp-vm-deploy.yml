@@ -10,7 +10,7 @@
 # AUTH: Workload Identity Federation (OIDC) — no long-lived JSON key in a secret. The
 # job mints a short-lived token from GitHub's OIDC identity. See google-github-actions/auth.
 #
-# Reference shape: asavschaeffer/mog-template (preview on PR approval, prod on default
+# Reference shape: a SpacetimeDB + Vite app (preview on PR approval, prod on default
 # branch, opposite concurrency policies).
 
 # ===========================================================================

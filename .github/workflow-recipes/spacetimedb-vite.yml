@@ -7,7 +7,7 @@
 # ubuntu-latest IS that host: it builds the server WASM, starts a local DB on 127.0.0.1,
 # publishes a test module, and runs client regression scripts against it.
 #
-# Reference shape: asavschaeffer/mog-template (Ubuntu Rust/WASM, Vite build/test,
+# Reference shape: a SpacetimeDB + Vite app (Ubuntu Rust/WASM, Vite build/test,
 # SpacetimeDB integration vs 127.0.0.1, preview-on-approval, prod-on-default-branch).
 
 # ---------------------------------------------------------------------------
@@ -51,7 +51,7 @@ client:
         npm run typecheck
         npm run lint
         npm test
-        npm run build                      # the SAME bundle deploy ships (#20)
+        npm run build                      # the SAME bundle deploy ships
 
 # ---------------------------------------------------------------------------
 # INTEGRATION  — install the CLI, run a local DB on 127.0.0.1, publish, regress.
