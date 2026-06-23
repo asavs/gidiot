@@ -224,7 +224,9 @@ the intended files only.
 **Two loops the executor runs inside.**
 
 1. *Local loop (cheap):* implement → lint + focused tests → fix → repeat to green.
-   Nitpick/lint churn stays here, off CI.
+   Nitpick/lint churn stays here, off CI. "Local gate green" means **behaviour-checked
+   and change-scoped** — the gate exercised the artifact (smoke/dry-run/focused test) and
+   ran on the touched files — not syntax-checked repo-wide.
 2. *CI loop (bounded):* after local-green, push a draft PR and read Actions (the Linux
    verdict). A few push→read→fix cycles are fine; a failure that is green locally but
    red on CI is its own class → straight to the orchestrator.
@@ -232,8 +234,8 @@ the intended files only.
 **Escalate on non-convergence, not first failure.**
 
 - The executor keeps fixing while the failing set shrinks; it escalates only when
-  progress stalls (failing set stops shrinking for K cycles; a hard cap of N attempts
-  is a runaway backstop, not the normal trigger).
+  progress stalls (failing set stops shrinking for K cycles, suggest **K = 2**; a hard
+  cap of N attempts, **N ≈ 6**, is a runaway backstop, not the normal trigger).
 - It escalates with a **distilled report** — what was tried, the persistent failure
   signature, its hypothesis — never a transcript.
 - The orchestrator's cheapest reply is a corrected micro-instruction into the *same*
@@ -246,5 +248,14 @@ the intended files only.
 <!-- The non-obvious things that have bitten people: flaky tests, env quirks,
 ordering requirements, platform differences. -->
 
-- {{Gotcha 1}}
-- {{Gotcha 2}}
+- **Git Bash on Windows for shell smoke runs.** If a shell fixture needs a local smoke
+  run on Windows, prefer Git for Windows Bash invoked as a login shell so Unix tools
+  (`dirname`, `mktemp`, `sed`, `grep`, `head`…) are on PATH — the default `bash` may
+  resolve to WSL, which fails when no distro is installed:
+  ```powershell
+  & 'C:\Program Files\Git\bin\bash.exe' -lc 'cd /c/path/to/repo && ./scripts/path/to/test.sh'
+  ```
+  Treat this as cheap local confidence, not the verdict: **GitHub Actions remains the
+  Linux source of truth** for Linux-only behaviour, services, and platform edge cases.
+  If a local shell check can't run cleanly on Windows, say so in the PR body and rely on
+  CI — don't over-invest in building an ad hoc local Linux environment that CI already answers.
