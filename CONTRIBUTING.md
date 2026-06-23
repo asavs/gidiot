@@ -26,6 +26,18 @@ Link related issues & PRs. Description and diagnosis outranks fix proposal. Use 
 A branch scopes ≥1 issues under a title abstract enough to accommodate
 implementation adjustments during review loop. Branch from the protected default.
 
+**Plan the cluster first.** Before any code, name the selected issue or issue
+cluster the branch will carry — that name is the PR's review/QA story. A *PR
+represents one coherent human decision*, so cluster only issues a human can review
+and QA as one: shared feature set, same review context, same QA path, or a strong
+dependency. **Split** when issues diverge — unrelated behavior, a different QA
+surface, high-risk changes, or a branch growing too large to inspect in one pass.
+
+This branch-cluster is the **PR-cluster** axis, not the milestone axis: a milestone
+groups issues by capability and spans many PRs; a PR cluster groups them by shared
+QA surface. They're owned by different tiers — see the **Agent stack** in
+[AGENTS.md](./AGENTS.md). Don't conflate them.
+
 A few strategies for what to pick up: organize around blockers, defer hard design
 decisions, take low-hanging fruit, or eat the frog.
 
@@ -35,6 +47,11 @@ Commits within a branch can be rough; the branch is a collaborative workspace.
 It gets squashed/rebased on merge, so optimize for momentum and clean up the final
 PR. Commit names should be a 1 liner with bullet points as necessary. They're the
 branch's working memory, so make each a purposeful unit — the code change, then its tests.
+
+A *commit represents one coherent unit of work*, so the default grain is
+**one issue ≈ one purposeful commit**. Take multiple commits per issue freely when
+the work naturally stages (code, then tests) or when review/QA feedback lands a
+follow-up. Issues carry intent; commits carry implementation memory.
 
 Each push runs the suite for the **areas it touched** via Actions
 ([`test.yml`](./.github/workflows/test.yml)) — a green **`ci`** is the gate out of step 2.
@@ -53,8 +70,12 @@ If a relevant check is skipped, say why in the PR body.
 
 Open the PR **as a draft** as soon as there's a first commit. Draft means work in
 progress, not ready for review: it keeps work visible and runs CI continuously
-through step 2. Reference the issue (`Closes #42`). If major rework starts after
-going ready, flip back to draft.
+through step 2. Reference every issue in the cluster (`Closes #42`). If major rework
+starts after going ready, flip back to draft.
+
+The PR is the unit of review and QA, so it should hold the cluster named in step 1
+and nothing wider — *PRs carry the review/QA decision*. If a draft has drifted to mix
+unrelated behavior or QA surfaces, split it before going ready.
 
 Title it as a [Conventional Commit](https://www.conventionalcommits.org/) — it
 becomes the squash-merge message:
