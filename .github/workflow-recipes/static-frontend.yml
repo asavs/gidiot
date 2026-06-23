@@ -1,0 +1,89 @@
+# RECIPE — Static frontend (Vite): build dist/ in CI, sync to a hosting target.
+#
+# NON-RUNNING: lives outside .github/workflows/. The BUILD job goes in workflows/test.yml
+# (so CI builds the same bundle deploy ships); the DEPLOY jobs go in workflows/deploy.yml.
+# Adapt {{placeholders}}, delete the rest.
+#
+# THE POINT: CI builds the exact static bundle that deploys — one frozen install, one
+# build, the same dist/ on preview and prod. Develop anywhere; Actions is the deploy
+# builder. Preview deploys for feel-testing; prod deploys from the default branch.
+
+# ---------------------------------------------------------------------------
+# BUILD/TEST  →  paste into workflows/test.yml as an area job (e.g. `client`).
+# ---------------------------------------------------------------------------
+build:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: npm                         # lockfile-keyed dep cache
+        cache-dependency-path: package-lock.json
+    - name: install (frozen)
+      run: npm ci                          # frozen-lockfile (#25)
+    - name: typecheck / lint / test / build
+      run: |
+        npm run typecheck
+        npm run lint
+        npm test
+        npm run build                      # emits dist/ — the deploy artifact (#20)
+    - uses: actions/upload-artifact@v4     # hand dist/ to the deploy workflow
+      with:
+        name: dist
+        path: dist/
+
+# ---------------------------------------------------------------------------
+# PREVIEW DEPLOY  →  paste into workflows/deploy.yml. Cancels stale runs.
+# ---------------------------------------------------------------------------
+# Two common targets shown — keep one. Auth: prefer OIDC where the host supports it;
+# otherwise a scoped deploy token in Secrets (NEVER echoed/cat'd).
+preview:
+  if: github.event_name == 'pull_request_review' && github.event.review.state == 'approved'
+  runs-on: ubuntu-latest
+  environment: preview
+  permissions:
+    contents: read
+    id-token: write                       # OIDC where the host supports it
+  concurrency:
+    group: preview-pr-${{ github.event.pull_request.number }}
+    cancel-in-progress: true              # preview CANCELS stale runs
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.review.commit_id }}
+    - uses: actions/setup-node@v4
+      with: { node-version: 20, cache: npm, cache-dependency-path: package-lock.json }
+    - run: npm ci && npm run build -- --mode preview
+    # Option A — object storage / CDN sync (auth via OIDC, no static key):
+    #   - uses: google-github-actions/auth@v2
+    #     with: { workload_identity_provider: ${{ vars.WIF_PROVIDER }}, service_account: ${{ vars.PREVIEW_SA }} }
+    #   - run: gsutil -m rsync -d -r dist gs://${{ vars.PREVIEW_BUCKET }}
+    # Option B — platform CLI with a SCOPED deploy token from Secrets:
+    #   - run: npx {{vercel|netlify|wrangler}} deploy ./dist
+    #     env: { DEPLOY_TOKEN: ${{ secrets.PREVIEW_DEPLOY_TOKEN }} }   # never echo it
+    - run: echo "Sync dist/ to the preview target."
+
+# ---------------------------------------------------------------------------
+# PRODUCTION DEPLOY  →  paste into workflows/deploy.yml. Never cancels in-flight.
+# ---------------------------------------------------------------------------
+prod:
+  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  runs-on: ubuntu-latest
+  environment: production
+  permissions:
+    contents: read
+    id-token: write
+  concurrency:
+    group: prod
+    cancel-in-progress: false             # prod NEVER cancels an in-flight deploy
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with: { node-version: 20, cache: npm, cache-dependency-path: package-lock.json }
+    - run: npm ci && npm run build -- --mode production
+    # Same target as preview, prod credentials/bucket — keep caches & tokens isolated:
+    #   - uses: google-github-actions/auth@v2
+    #     with: { workload_identity_provider: ${{ vars.WIF_PROVIDER }}, service_account: ${{ vars.PROD_SA }} }
+    #   - run: gsutil -m rsync -d -r dist gs://${{ vars.PROD_BUCKET }}
+    - run: echo "Sync dist/ to the production target."
