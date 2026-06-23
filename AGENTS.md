@@ -119,6 +119,12 @@ primitive). `Priority` is a proven-by-need escape hatch, not baseline. An agent 
 filters for status / repository / milestone / parent issue from these stable names without
 reading the Project schema at runtime.
 
+**Adopt a cross-repo Project as the operating view.** One board gathers the native primitives
+above across your repos, so agents discover ready work without the originating conversation —
+set each fact on its issue and the board mirrors it (no double-entry). Setup, baseline fields,
+and the `project`-scope prerequisite live in
+[`.github/project-template.md`](./.github/project-template.md).
+
 **The `ready()` predicate** — an agent picks work by computing this from repo state alone,
 no originating conversation required:
 
