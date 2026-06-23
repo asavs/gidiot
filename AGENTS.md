@@ -74,6 +74,58 @@ Be specific and concrete; vague rules get ignored. Examples below — replace. -
 - {{e.g. "No secrets in client-visible env vars (anything prefixed `VITE_`/`NEXT_PUBLIC_` ships to users)."}}
 - Do not edit, stage, commit, or inspect anything in `.examples/` (scratch / off-limits).
 
+## GitHub primitive conventions
+
+GitHub gives us overlapping primitives; the discipline is to store each kind of state in
+its *closest native* primitive instead of inventing parallel metadata. The governing rule:
+
+> Names are for humans, fields for machines, descriptions for context, labels for
+> filtering, milestones for phase, Projects for operating state.
+
+**Prefer a native primitive over a custom field or prose, every time.** A title carries
+intent, not metadata GitHub already models (no `[bug]` / `[M0]` / `P1` / `docs:` prefixes —
+labels, milestones, and Projects own those).
+
+**Primitive map** — each kind of state and where it lives:
+
+| State | Home primitive |
+|-------|----------------|
+| Intent (the *what*) | issue **title** |
+| Context — what & why | issue **body** → an intent-spec |
+| Decomposition | **parent / sub-issues** |
+| Hard order (B can't start until A merges) | native **issue dependencies** (`blocked_by` / `blocks`) |
+| Phase | **milestone** |
+| Operating state | Project **`Status`** (`Todo` / `In Progress` / `Done`) |
+| Filtering / readiness / risk-domain | **labels** |
+| Soft order | *(none baseline)* — a Project `Priority` field only proven-by-need |
+
+**Milestones are phase gates.** Group by capability, not by date; a milestone closes when
+its issues close, never on a calendar. One milestone spans many PRs. QA happens at the PR,
+never at the milestone (see **Agent stack**). Live starter set: **M0–M3**.
+
+**Project field baseline — keep the schema minimal.** Built-in `Repository` / `Milestone` /
+`Parent issue` / `Sub-issue progress` plus `Status` only. No custom `Phase` (milestones are
+the phase primitive) and no custom `Epic` / `Parent` (parent/sub-issues are the decomposition
+primitive). `Priority` is a proven-by-need escape hatch, not baseline. An agent constructs
+filters for status / repository / milestone / parent issue from these stable names without
+reading the Project schema at runtime.
+
+**The `ready()` predicate** — an agent picks work by computing this from repo state alone,
+no originating conversation required:
+
+```text
+ready(issue) = no open "blocked by" edges
+             AND has an intent-spec
+             AND in the active milestone
+             AND not labelled blocked / needs-spec
+```
+
+Readiness labels: **`ready`** / **`blocked`** / **`needs-spec`**. Decomposition (having
+sub-issues) is *not* itself a blocker — only a dependency edge or a `blocked` label is.
+
+For the `gh` / `gh api` mechanics of all of the above, see
+[`.github/gh-operations.md`](./.github/gh-operations.md).
+
 ## Folder-scoped guidelines
 
 Context is pulled in **by area**, not dumped globally. Before editing an area, read
