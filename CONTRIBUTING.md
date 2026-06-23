@@ -3,6 +3,9 @@
 - **Laziness** — defer compute up the cost curve, each gate guarding a dearer one: tests → LLM review → human review.
 - **Idiomatic platform use** — GitHub is your operational memory: issues hold intent, commits the work, PRs the decisions, Actions the verdict. Lean on its primitives instead of carrying that state yourself.
 
+Role boundaries live in the [Working roles table](./AGENTS.md#working-roles). Read the row
+for the role you are filling; it tells you which scoped guide matters for the work at hand.
+
 ## The loop
 
 ```mermaid
