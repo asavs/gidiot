@@ -23,9 +23,18 @@ swappable example.
 |------|------|----------------|----------------|-------|
 | 1 | **Intent / translation** | a human's fuzzy wants → precise engineering intent | **milestones**, issues, **intent-specs** | Claude |
 | 2 | **Orchestration** | intent-spec → step-by-step implementation; supervises the executor | **implementation-instructions**, **PR-cluster / branch choice** | Codex |
-| 3 | **Execution** | implementation-instructions → code that passes the gate | commits (the diff) | a fast code model (e.g. opencode + north-mini) |
+| 3 | **Execution** | implementation-instructions → code that passes the gate | commits (the diff) | Claude subagents (in-ecosystem dogfooding); cheap path: opencode + north-mini (#31/#35) |
 | 4 | **Adversarial review** | a green PR → defects / objections | the review verdict | Gemini |
 | 5 | **QA + merge** | a reviewed PR → shipped | the merge decision | a human |
+
+**Each tier has its own context doc** — what it reads, authors, and points at:
+[`.github/agents/t1.md`](./.github/agents/t1.md) (intent),
+[`.github/agents/t2.md`](./.github/agents/t2.md) (orchestration),
+[`.github/agents/t3.md`](./.github/agents/t3.md) (execution). The governing
+**context-budget principle (#15): broad at the top, narrow at the executor** — the
+upper tiers read the whole picture (this file, the issue graph) and distill it; the
+executor reads only its implementation-instructions plus the touched files' GUIDELINES,
+and *not* this file.
 
 **Artifact ownership is load-bearing** — it's where tokens leak if the tiers blur:
 
