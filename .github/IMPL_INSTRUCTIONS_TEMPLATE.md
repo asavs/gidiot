@@ -29,6 +29,11 @@ new architecture or product judgment calls -->
 
 ## Local gate (converge to green before pushing)
 <!-- the exact command the Junior Engineer loops on: lint + focused tests. CI is the final verdict.
+The gate must **exercise the produced artifact** — a smoke run, dry-run, or focused behavior
+test — not a parse-only / syntax-only check: a `bash -n`-clean script can still carry semantic
+bugs (e.g. a `set -e` exit-capture defeat or a cwd-dependent `cd`) that only a real run surfaces.
+Scope the gate to the **touched files**: pre-existing lint/test debt in untouched files is a
+false signal and must not fail the gate (run the linter/tests on the changed paths, not repo-wide).
 Use POSIX paths relative to $PWD (the worktree root); never `cd` to a Windows C:\ path —
 the worktree lives at an OS temp path and absolute drive paths break the gate. -->
 ```bash

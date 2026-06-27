@@ -172,6 +172,17 @@ if [ "$terminal_reason" != "stop" ]; then
     exit 4
 fi
 
+# North Mini can answer a headless directive with a generic clarification and
+# a normal `stop`. A real implementation must perform at least one tool call;
+# this rejects the no-tool-call false positive before accepting its commit.
+tool_call_count="$(bash "$runner_dir/scripts/session-tool-call-count.sh" "$session_json" 2>/dev/null || true)"
+if ! [[ "$tool_call_count" =~ ^[1-9][0-9]*$ ]]; then
+    echo "RUN $run_id: FAIL - session stopped without an executor tool call" >&2
+    echo "  session: ${sid:-<none matched title '$session_title'>} | metadata: $session_json | log: $log" >&2
+    echo "  A generic clarification is not a completed headless executor run." >&2
+    exit 7
+fi
+
 # Implementation instructions require an intentional commit. A clean process
 # exit without a new commit means the executor stopped before delivering work.
 head_commit="$(git -C "$worktree" rev-parse HEAD)"
@@ -192,4 +203,4 @@ if [ -n "$residual_status" ]; then
     exit 6
 fi
 
-echo "RUN $run_id: success (terminal reason '$terminal_reason', committed work, model '$resolved_model'). Review: $worktree"
+echo "RUN $run_id: success (terminal reason '$terminal_reason', $tool_call_count tool call(s), committed work, model '$resolved_model'). Review: $worktree"

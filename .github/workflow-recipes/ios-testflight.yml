@@ -1,0 +1,77 @@
+# RECIPE — Swift/iOS on a hosted Mac (test gate + TestFlight deploy).
+#
+# NON-RUNNING: this file lives outside .github/workflows/, so Actions never auto-runs
+# it. Copy the test job into workflows/test.yml and the deploy job into
+# workflows/deploy.yml, adapt the {{placeholders}}, delete what you don't use.
+#
+# THE POINT: you do not need a Mac to ship iOS. A Windows/Linux laptop pushes Swift;
+# macos-latest compiles, tests, archives, and uploads to TestFlight. Actions IS your Mac.
+#
+# Reference shape: a Swift/iOS app (stable iOS gate, repo-owned test script,
+# .xcresult summaries/artifacts, TestFlight deploy).
+
+# ---------------------------------------------------------------------------
+# TEST GATE  →  paste into workflows/test.yml as an area job (e.g. `client`).
+# ---------------------------------------------------------------------------
+ios-test:
+  runs-on: macos-latest                 # the hosted Mac your laptop isn't
+  steps:
+    - uses: actions/checkout@v4
+    - uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable     # pin to '{{16.x}}' once a version is chosen
+    # Own the test command in-repo so CI and local run the SAME lane (exercise
+    # the artifact, not only syntax). e.g. scripts/test-ios.sh stable
+    - name: test (stable lane)
+      run: ./scripts/test-ios.sh stable  # xcodebuild test -resultBundlePath build/Tests.xcresult
+    # .xcresult is the diagnostic artifact — summarize it and upload on failure so a
+    # red run is debuggable without a local Mac.
+    - name: summarize .xcresult
+      if: always()
+      run: xcrun xcresulttool get --path build/Tests.xcresult --format json > build/xcresult.json || true
+    - uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: xcresult
+        path: build/Tests.xcresult
+        retention-days: 7
+
+# ---------------------------------------------------------------------------
+# TESTFLIGHT DEPLOY  →  paste into workflows/deploy.yml (e.g. the `beta` job).
+# ---------------------------------------------------------------------------
+# Auth uses an App Store Connect API key (key id + issuer id + .p8). iOS signing/notary
+# has no OIDC path, so these ARE static secrets — store them in GitHub Secrets and treat
+# them as radioactive: NEVER echo/cat the .p8 or the env, and rm the key file at the end.
+ios-testflight:
+  if: github.event_name == 'pull_request_review' && github.event.review.state == 'approved'
+  runs-on: macos-latest
+  environment: beta                       # gate prod/TestFlight behind an environment
+  concurrency:
+    group: testflight-pr-${{ github.event.pull_request.number }}
+    cancel-in-progress: true              # newest approved build wins beta
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.review.commit_id }}   # ship the approved SHA exactly
+    - uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+    # Write the API key file from a secret, never inline. Path is rm'd below.
+    - name: stage App Store Connect key
+      env:
+        ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}   # the .p8 contents, base64 or raw
+      run: |
+        mkdir -p ~/.appstoreconnect/private_keys
+        printf '%s' "$ASC_KEY_P8" > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+    - name: archive + export + upload
+      env:
+        ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      run: |
+        # 1) xcodebuild archive -> 2) export .ipa -> 3) upload. fastlane pilot or
+        #    `xcrun altool --upload-app` both work; pass the API key by id/issuer,
+        #    never by printing the .p8.
+        ./scripts/deploy-testflight.sh "$ASC_KEY_ID" "$ASC_ISSUER_ID"
+    - name: wipe secrets from runner
+      if: always()                        # runs even on failure — leave no key behind
+      run: rm -rf ~/.appstoreconnect/private_keys

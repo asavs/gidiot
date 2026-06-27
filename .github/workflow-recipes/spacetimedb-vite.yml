@@ -1,0 +1,85 @@
+# RECIPE — SpacetimeDB (Rust/WASM server) + Vite client on Ubuntu.
+#
+# NON-RUNNING: lives outside .github/workflows/. Copy the jobs into workflows/test.yml as
+# area jobs (server + client + an integration job), adapt {{placeholders}}, delete the rest.
+#
+# THE POINT: SpacetimeDB's CLI/runtime needs Linux even if you develop on Mac/Windows.
+# ubuntu-latest IS that host: it builds the server WASM, starts a local DB on 127.0.0.1,
+# publishes a test module, and runs client regression scripts against it.
+#
+# Reference shape: a SpacetimeDB + Vite app (Ubuntu Rust/WASM, Vite build/test,
+# SpacetimeDB integration vs 127.0.0.1, preview-on-approval, prod-on-default-branch).
+
+# ---------------------------------------------------------------------------
+# SERVER  — Rust stable + wasm32 target, Cargo cache, build/test.
+# ---------------------------------------------------------------------------
+server:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32-unknown-unknown   # SpacetimeDB modules compile to WASM
+    - uses: Swatinem/rust-cache@v2         # caches ~/.cargo + target/ by Cargo.lock
+      with:
+        workspaces: server                 # scope the cache to the server crate
+    - name: build module (wasm)
+      run: cargo build --locked --target wasm32-unknown-unknown --release
+      working-directory: server            # --locked = frozen Cargo.lock (#25)
+    - name: unit tests
+      run: cargo test --locked
+      working-directory: server
+
+# ---------------------------------------------------------------------------
+# CLIENT  — Vite frontend: node cache, frozen install, typecheck/lint/test/build.
+# ---------------------------------------------------------------------------
+client:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: npm                         # or pnpm/yarn — keys off the lockfile
+        cache-dependency-path: client/package-lock.json
+    - name: install (frozen)
+      run: npm ci                          # frozen-lockfile (#25); fails if lock drifts
+      working-directory: client
+    - name: typecheck / lint / test / build
+      working-directory: client
+      run: |
+        npm run typecheck
+        npm run lint
+        npm test
+        npm run build                      # the SAME bundle deploy ships
+
+# ---------------------------------------------------------------------------
+# INTEGRATION  — install the CLI, run a local DB on 127.0.0.1, publish, regress.
+# ---------------------------------------------------------------------------
+integration:
+  runs-on: ubuntu-latest
+  needs: [server, client]
+  steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32-unknown-unknown
+    - name: install spacetimedb cli
+      run: curl -fsSL https://install.spacetimedb.com | bash   # pin a version in prod
+    - name: start local DB + publish test module
+      run: |
+        spacetime start &                 # listens on 127.0.0.1 by default
+        ./tests/wait-for-port.sh 127.0.0.1 3000
+        spacetime publish --project-path server test-module
+    - name: client regression scripts
+      run: ./tests/integration.sh         # drives the published module end-to-end
+    # Dump DB + test logs on failure so the integration run is debuggable.
+    - name: dump logs
+      if: failure()
+      run: spacetime logs test-module > integration-logs.txt || true
+    - uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: spacetimedb-integration-logs
+        path: integration-logs.txt
+        retention-days: 7

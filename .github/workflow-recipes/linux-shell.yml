@@ -1,0 +1,43 @@
+# RECIPE — Linux shell/script CI on Ubuntu (shellcheck + jq + fixture tests).
+#
+# NON-RUNNING: lives outside .github/workflows/. Copy the job into workflows/test.yml as
+# an area job (e.g. `server` or a new `scripts` area), adapt {{placeholders}}, delete the
+# rest.
+#
+# THE POINT: a Mac/Windows shell developer doesn't have the same Linux as production —
+# GNU coreutils vs BSD, real shellcheck/jq, service ports, Linux file permissions.
+# ubuntu-latest IS that Linux box. Push from anywhere; let Actions run the Linux lane.
+
+shell-ci:
+  runs-on: ubuntu-latest                  # the Linux box your Mac/Windows laptop isn't
+  steps:
+    - uses: actions/checkout@v4
+
+    # Static analysis first — cheap, catches most bugs. shellcheck + jq ship on the
+    # ubuntu-latest image; install pinned versions only if you need reproducibility.
+    - name: shellcheck
+      run: |
+        shopt -s globstar nullglob
+        shellcheck scripts/**/*.sh        # or: git ls-files '*.sh' | xargs shellcheck
+
+    # Validate any JSON config/fixtures with jq (also catches trailing-comma rot).
+    - name: validate json fixtures
+      run: |
+        for f in tests/fixtures/**/*.json; do jq empty "$f"; done
+
+    # Run focused fixture/smoke tests that exercise the REAL behavior, not syntax
+    # alone. Capture logs so a failure is debuggable without reproducing the Linux env.
+    - name: fixture / smoke tests
+      run: |
+        mkdir -p build/logs
+        ./tests/run.sh 2>&1 | tee build/logs/test.log
+        # If a script binds a port or needs a Linux service, start it here:
+        #   nohup ./scripts/serve.sh & ; ./tests/wait-for-port.sh 127.0.0.1 8080
+
+    # Upload logs ONLY on failure — keeps green runs clean, red runs diagnosable.
+    - uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: shell-ci-logs
+        path: build/logs/
+        retention-days: 7

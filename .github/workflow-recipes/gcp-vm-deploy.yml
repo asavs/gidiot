@@ -1,0 +1,108 @@
+# RECIPE — Deploy SpacetimeDB + Vite to a Google Compute VM (build in CI, apply on host).
+#
+# NON-RUNNING: lives outside .github/workflows/. Copy the jobs into workflows/deploy.yml
+# (beta + prod), adapt {{placeholders}}, delete the rest.
+#
+# THE POINT: Actions is the build machine; the VM is just the target. CI builds the beta
+# OR prod client bundle and the server WASM, stages them as artifacts, then applies them
+# on the host. The VM needs no toolchain, no checkout, no git — only the prebuilt bundle.
+#
+# AUTH: Workload Identity Federation (OIDC) — no long-lived JSON key in a secret. The
+# job mints a short-lived token from GitHub's OIDC identity. See google-github-actions/auth.
+#
+# Reference shape: a SpacetimeDB + Vite app (preview on PR approval, prod on default
+# branch, opposite concurrency policies).
+
+# ===========================================================================
+# BETA  — on PR approval. Builds the beta bundle, applies to the beta VM.
+# ===========================================================================
+beta:
+  if: github.event_name == 'pull_request_review' && github.event.review.state == 'approved'
+  runs-on: ubuntu-latest
+  environment: beta
+  permissions:
+    contents: read
+    id-token: write                       # required for OIDC / WIF
+  concurrency:
+    group: beta-pr-${{ github.event.pull_request.number }}
+    cancel-in-progress: true              # preview CANCELS stale runs (newest wins)
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.review.commit_id }}   # ship the approved SHA
+
+    # --- build the BETA artifacts (PR-scoped cache; isolated from prod cache) ---
+    - uses: actions/setup-node@v4
+      with: { node-version: 20, cache: npm, cache-dependency-path: client/package-lock.json }
+    - uses: dtolnay/rust-toolchain@stable
+      with: { targets: wasm32-unknown-unknown }
+    - uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: server
+        prefix-key: beta-pr-${{ github.event.pull_request.number }}   # NOT shared with prod
+    - name: build client (beta env) + server wasm
+      run: |
+        (cd client && npm ci && npm run build -- --mode beta)
+        (cd server && cargo build --locked --target wasm32-unknown-unknown --release)
+    - name: stage artifacts
+      run: |
+        mkdir -p out
+        cp -r client/dist out/client
+        cp server/target/wasm32-unknown-unknown/release/*.wasm out/
+
+    # --- authenticate via WIF, then apply on the beta host ---
+    - uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}   # not a secret
+        service_account: ${{ vars.GCP_BETA_SA }}
+    - uses: google-github-actions/setup-gcloud@v2
+    - name: apply on beta VM
+      run: |
+        # Copy the prebuilt bundle to the VM and run an idempotent apply script there.
+        # gcloud uses the OIDC-minted token — no SSH key is printed anywhere.
+        gcloud compute scp --recurse out/ ${{ vars.GCP_BETA_VM }}:~/incoming --zone "${{ vars.GCP_ZONE }}"
+        gcloud compute ssh ${{ vars.GCP_BETA_VM }} --zone "${{ vars.GCP_ZONE }}" \
+          --command "./apply.sh ~/incoming"   # publishes wasm + swaps static bundle
+
+# ===========================================================================
+# PROD  — on default-branch push. Builds the prod bundle, applies to the prod VM.
+# ===========================================================================
+prod:
+  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  runs-on: ubuntu-latest
+  environment: production
+  permissions:
+    contents: read
+    id-token: write
+  concurrency:
+    group: prod
+    cancel-in-progress: false             # prod NEVER cancels an in-flight rollout
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with: { node-version: 20, cache: npm, cache-dependency-path: client/package-lock.json }
+    - uses: dtolnay/rust-toolchain@stable
+      with: { targets: wasm32-unknown-unknown }
+    - uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: server
+        prefix-key: prod                  # prod cache key — never PR-scoped
+    - name: build client (prod env) + server wasm
+      run: |
+        (cd client && npm ci && npm run build -- --mode production)
+        (cd server && cargo build --locked --target wasm32-unknown-unknown --release)
+    - name: stage artifacts
+      run: |
+        mkdir -p out
+        cp -r client/dist out/client
+        cp server/target/wasm32-unknown-unknown/release/*.wasm out/
+    - uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+        service_account: ${{ vars.GCP_PROD_SA }}
+    - uses: google-github-actions/setup-gcloud@v2
+    - name: apply on prod VM
+      run: |
+        gcloud compute scp --recurse out/ ${{ vars.GCP_PROD_VM }}:~/incoming --zone "${{ vars.GCP_ZONE }}"
+        gcloud compute ssh ${{ vars.GCP_PROD_VM }} --zone "${{ vars.GCP_ZONE }}" \
+          --command "./apply.sh ~/incoming"

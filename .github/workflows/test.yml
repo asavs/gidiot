@@ -11,6 +11,22 @@
 # LANGUAGE-NAIVE BY DESIGN. The routing below is pure globs; the build/test COMMANDS in
 # each area job are placeholders — fill them with your stack (cargo/pytest/npm/go). Add
 # an area by copying a filter + its job; delete one you don't have.
+#
+# ACTIONS IS RENTED TARGET INFRASTRUCTURE — not just a test runner. Your dev machine
+# does not have to be the build machine. A Windows/Linux laptop can compile + test iOS
+# on a hosted Mac; a Mac can run Linux-only tooling (shellcheck, jq, GNU utils, service
+# ports) on Ubuntu; a SpacetimeDB host can run on Linux while you develop anywhere. Pick
+# the `runs-on` that gives you the OS your stack needs, then paste a recipe:
+#
+#   Swift/iOS gate (macos-latest, Xcode, .xcresult)  → .github/workflow-recipes/ios-testflight.yml
+#   Linux shell tooling (shellcheck/jq/fixtures)     → .github/workflow-recipes/linux-shell.yml
+#   SpacetimeDB + Vite (Rust/WASM, local DB on 127)  → .github/workflow-recipes/spacetimedb-vite.yml
+#   Vite frontend (node cache, frozen install, build)→ .github/workflow-recipes/static-frontend.yml
+#
+# Recipe files live OUTSIDE workflows/ so Actions never auto-runs them — copy the parts
+# you need into the area jobs below and delete the rest. Caching + frozen-lockfile
+# installs (#25) are shown per stack in those recipes. Faster hosted runners (e.g.
+# Blacksmith) are an optional speed swap on `runs-on` AFTER the shape is right — not now.
 name: test
 
 on:
@@ -56,6 +72,8 @@ jobs:
       - uses: actions/checkout@v4
       # --- {{client}} setup + build + test ----------------------------------
       # e.g. actions/setup-node@v4 (cache: npm) -> npm ci -> npm run lint -> npm test
+      # iOS client? switch runs-on to macos-latest — see recipes/ios-testflight.yml.
+      # Vite/static client? see recipes/static-frontend.yml (frozen install + build).
       - name: placeholder
         run: echo "Replace with {{client}} build + test."
 
@@ -67,6 +85,8 @@ jobs:
       - uses: actions/checkout@v4
       # --- {{server}} setup + build + test ----------------------------------
       # e.g. actions/setup-python@v5 -> pip install -e ".[dev]" -> ruff check . -> pytest
+      # SpacetimeDB/Rust server? Cargo cache + wasm32 build + local-DB integration —
+      # see recipes/spacetimedb-vite.yml. Linux-tooling shell tests? recipes/linux-shell.yml.
       - name: placeholder
         run: echo "Replace with {{server}} build + test."
 

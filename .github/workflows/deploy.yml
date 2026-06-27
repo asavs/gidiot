@@ -1,4 +1,19 @@
+name: deploy
+on:
+  workflow_dispatch:        # manual-only; no automatic deploys until configured
+jobs:
+  deploy-not-configured:
+    if: ${{ false }}        # never runs until you wire real triggers from the recipes below
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deploy ladder not configured — see comments below."
+
 # OPT-IN deploy ladder. Disabled by default so plain libraries don't carry dead CI.
+#
+# ACTIONS IS THE DEPLOY BUILDER your laptop isn't. It compiles the iOS archive on a
+# hosted Mac, the server WASM on Linux, the static bundle anywhere — then ships the
+# PREBUILT artifact to the target. Develop on any OS; deploy from a reviewed, green,
+# default-branch state.
 #
 # To enable: uncomment the `on:` triggers below and fill in the deploy steps.
 # The opinionated convention this encodes:
@@ -6,6 +21,14 @@
 #   - merge to the default branch      => deploy to PROD
 #   (Alternative beta trigger some teams prefer: on "ready for review" instead of
 #    approval — swap the `pull_request_review` trigger for `pull_request: types: [ready_for_review]`.)
+#   (Branch-environment variant: a `beta` branch deploys beta/TestFlight/preview, the
+#    default branch deploys prod. The invariant either way: prod ships only from a
+#    reviewed, green, default-branch state; preview/beta exists for human feel-testing.)
+#
+# Pick a deploy target, then paste a recipe (each shows the build + ship for its stack):
+#   TestFlight from an iOS archive (App Store Connect API key) → recipes/ios-testflight.yml
+#   Google VM: SpacetimeDB WASM + Vite bundle, stage + apply   → recipes/gcp-vm-deploy.yml
+#   Static frontend: build dist/, sync to host                 → recipes/static-frontend.yml
 #
 # Patterns worth keeping (see comments inline):
 #   - BUILD IN CI, SHIP PREBUILT ARTIFACTS. The deploy target needs no toolchain,
@@ -14,7 +37,11 @@
 #   - OPPOSITE CONCURRENCY POLICIES. Beta cancels in-flight runs (newest wins);
 #     prod lets every run settle (never cancel a production rollout midway).
 #   - AUTH VIA WORKLOAD IDENTITY FEDERATION (OIDC), not long-lived static keys.
-#   - PR-SCOPED CACHE KEYS so PR-author code can't poison the shared/prod cache.
+#   - PR-SCOPED CACHE KEYS so PR-author code can't poison the shared/prod cache;
+#     keep preview and prod caches isolated (different keys / different runs).
+#   - NEVER PRINT SECRETS. No `echo`/`cat` of keys, secret files, env dumps, or
+#     `${{ toJSON(secrets) }}`. Mask via env, write key files to a path you `rm` in a
+#     final `if: always()` step, and never set `ACTIONS_STEP_DEBUG` on a secret step.
 #
 # name: deploy
 #
