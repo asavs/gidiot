@@ -1,7 +1,8 @@
 # CLAUDE.md
 
-**Read [AGENTS.md](./AGENTS.md).** It is the single source of truth for agent
-instructions in this repo; this file deliberately does not duplicate it.
+**Read [AGENTS.md](./AGENTS.md), then the role guide it links for your work.** AGENTS is
+the source of truth for repo-wide instructions; the role guides provide the only scoped
+extensions. This file deliberately does not duplicate either.
 
 Put Claude-specific content here only if it would be useless to other LLMs — which
 is rare. In practice this file should stay nearly empty.
