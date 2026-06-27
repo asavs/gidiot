@@ -27,7 +27,20 @@ place — show, don't list.}}
 
 3. **Lazy pointers.** Each fact has one home, and everything else points to it with a gist, so a reader dereferences only when the gist falls short. Same within a doc: reference what the title, issue, diff, or CI already holds instead of restating it.
 
-4. **Naive stack, built around agents.** A yolo'd agent clears tests and review (goobreview, greptile, coderabbit); you take QA and merge.
+4. **Naive stack, built around roles.** Product turns a goal into durable GitHub intent; a Senior Engineer plans and supervises a Junior Engineer's bounded implementation run; an independent reviewer challenges the green PR; a human performs QA and decides to merge. Tool and model assignments are swappable.
+
+## How work moves
+
+| Role | Input → output | Owns |
+|------|----------------|------|
+| **Product** | fuzzy goal → precise engineering intent | intent, constraints, acceptance criteria, decomposition, milestones, and issues |
+| **Senior Engineer** | issue intent → bounded implementation instructions | architecture/tradeoffs, PR scope, delegation, and escalation |
+| **Junior Engineer** | implementation instructions → tested, committed code | focused implementation and ordinary local convergence |
+| **Adversarial Reviewer** | green PR → defects, objections, or approval | independent review verdict |
+| **Human Maintainer** | reviewed PR → shipped change | QA and merge decision |
+
+Read the role guide only when you need it; the canonical contracts and current model assignments
+live in [AGENTS.md](./AGENTS.md#working-roles).
 
 ## Install
 
@@ -42,8 +55,10 @@ cd {{REPO}}
 ```
 {{REPO}}/
 ├── .github/
+│   ├── agents/                   # Product, Senior, Junior, and reviewer role guides
 │   ├── workflows/                # test.yml (CI) + deploy.yml (deploy ladder)
 │   ├── ISSUE_TEMPLATE/           # problem.md, task.md
+│   ├── IMPL_INSTRUCTIONS_TEMPLATE.md # Senior → Junior bounded handoff
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   └── CODEOWNERS
 ├── src/                          # code — rename per your stack

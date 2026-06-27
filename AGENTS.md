@@ -3,46 +3,44 @@
 The brief for **AI agents** working in this repo. It holds what an agent can't
 derive by reading the code, plus the execution norms that keep agents from tripping.
 
-- **Workflow & roles:** read [CONTRIBUTING.md](./CONTRIBUTING.md), then find your seat
-  in the **Agent stack** (below) — every contributor occupies exactly one tier of it.
+- **Workflow & role:** read [CONTRIBUTING.md](./CONTRIBUTING.md), then find your role
+  in the **Working roles** table below. It tells you what you own and whether you need
+  the linked role guide.
 - Before editing an area, read its guideline (see **Folder-scoped guidelines**).
 
-This is the **single source of truth** for agent instructions; tool-specific files
-(`CLAUDE.md`, `GEMINI.md`, `.cursor/rules/*`, `.github/copilot-instructions.md`)
-point here rather than duplicating it. Keep one source; generate or symlink the rest.
+Read only the scoped material your work requires: the guide for the role you are filling,
+then the guidelines for areas you touch. Link text and the table's **Owns** column should tell
+you whether a pointer is relevant; do not open every role guide by default.
 
-## Agent stack
+This is the **single source of truth for repo-wide agent instructions**. The scoped role
+guides linked below extend it only with role-specific context; tool-specific files
+(`CLAUDE.md`, `GEMINI.md`, `.cursor/rules/*`, `.github/copilot-instructions.md`) point here
+rather than duplicating it. Keep one source for each fact; generate or symlink tool wrappers.
 
-Work here flows through five **roles**, ordered by cost of effort. Each tier exists to
-conserve the scarcer resource in the tier above it: cheap labor absorbs lint/CI thrash so
-expensive labor never pays for it — the labor analogue of the fail-cheap gate ladder in
-[CONTRIBUTING.md](./CONTRIBUTING.md). Roles are primary; the tools filling them today are a
-swappable example.
+## Working roles
 
-| Tier | Role | Input → output | Authors (owns) | Today |
-|------|------|----------------|----------------|-------|
-| 1 | **Intent / translation** | a human's fuzzy wants → precise engineering intent | **milestones**, issues, **intent-specs** | Claude |
-| 2 | **Orchestration** | intent-spec → step-by-step implementation; supervises the executor | **implementation-instructions**, **PR-cluster / branch choice** | Codex |
-| 3 | **Execution** | implementation-instructions → code that passes the gate | commits (the diff) | a fast code model (e.g. opencode + north-mini) |
-| 4 | **Adversarial review** | a green PR → defects / objections | the review verdict | Gemini |
-| 5 | **QA + merge** | a reviewed PR → shipped | the merge decision | a human |
+Work flows through five roles. Each lower-cost role protects the scarcer attention above it:
+routine lint and test thrash stays with the Junior Engineer, rather than consuming Senior
+Engineer or Product attention. Roles are primary; tools and models are swappable assignments.
 
-**Artifact ownership is load-bearing** — it's where tokens leak if the tiers blur:
+| Role | Input → output | Owns | Read when you need role-specific detail | Current development default |
+|------|----------------|------|------------------------------------------|-----------------------------|
+| **Product** | fuzzy goal → precise engineering intent | Clarifies intent, constraints, acceptance criteria, and decomposition; authors milestones and issues; keeps Projects aligned. | [Product guide](./.github/agents/product.md) | configurable |
+| **Senior Engineer** | issue intent → bounded implementation instructions | Makes architecture and tradeoff calls; chooses the PR/branch-sized slice; writes the Junior’s handoff; supervises execution; handles CI-only and non-converging failures. | [Senior Engineer guide](./.github/agents/senior-engineer.md) | Codex |
+| **Junior Engineer** | implementation instructions → tested, committed code | Implements the bounded task; runs focused checks; iterates on ordinary failures; reports a concise blocker when genuinely stuck. | [Junior Engineer guide](./.github/agents/junior-engineer.md) | OpenCode + `opencode/north-mini-code-free` |
+| **Adversarial Reviewer** | green PR → defects, objections, or approval | Independently reviews the whole diff and authors the review verdict. | [Reviewer guide](./.github/agents/adversarial-reviewer.md) | configurable |
+| **Human Maintainer** | reviewed PR → shipped change | Performs real QA and makes the merge decision. | [CONTRIBUTING: QA and merge](./CONTRIBUTING.md#4-qa) | human |
 
-- **Milestones** are phase gates, authored by **tier 1**. Lower tiers work *inside* a
-  milestone's scope; they never author one.
-- **PR clusters** are a *different axis* from milestones — what a human can review and QA as
-  one coherent decision — authored by **tier 2**. A milestone groups by capability and spans
-  many PRs; a PR cluster groups by shared QA surface. Don't conflate them (see the PR-scope
-  guidance in [CONTRIBUTING.md](./CONTRIBUTING.md)).
-- **Specs come in two levels:** the **intent-spec** (tier 1 → tier 2 — the *what & why*) and
-  the **implementation-instructions** (tier 2 → tier 3 — the *how*), templated at
-  [`.github/INTENT_SPEC_TEMPLATE.md`](./.github/INTENT_SPEC_TEMPLATE.md) and
-  [`.github/IMPL_INSTRUCTIONS_TEMPLATE.md`](./.github/IMPL_INSTRUCTIONS_TEMPLATE.md).
-- **Supervision is cheap by construction:** the implement → test → fix loop lives in the
-  executor's own session, so the orchestrator spends nothing per cycle and wakes only on a
-  terminal state — green, or a distilled "stuck" report. Escalate on *non-convergence*, not
-  on first failure.
+The Product writes durable intent directly into GitHub: issue bodies hold the why, milestones
+hold phase scope, Projects hold operating state, and parent/sub-issues and dependencies hold
+decomposition and ordering. There is no separate intent-spec file to keep synchronized.
+
+The Senior Engineer turns that intent into [implementation instructions](./.github/IMPL_INSTRUCTIONS_TEMPLATE.md)
+for one bounded run. The Junior Engineer owns the implement → test → fix loop; the Senior
+Engineer wakes only for terminal success, a distilled stuck report, or a CI-only failure.
+
+Artifact ownership is load-bearing: milestones are Product-owned phase gates, while a
+Senior Engineer's PR cluster is a reviewable and QAable decision. Do not conflate the two.
 
 QA happens at the **PR**, never at the milestone: QA needs runnable code, and the only
 runnable unit is a merge. A milestone closing is just a rollup of PRs that were each already
@@ -110,14 +108,13 @@ How to move through the workflow without stepping on toes:
 
 ## Running the agent loop
 
-How the **orchestration tier** dispatches the **execution tier** and supervises it
-(roles: see **Agent stack**). This section is read by the upper tiers — the executor
-never reads it; it works only from its implementation-instructions plus the
-folder-scoped GUIDELINES for the files it touches.
+How the **Senior Engineer** dispatches the **Junior Engineer** and supervises it.
+This section is read by Product and Senior Engineer; the Junior Engineer works from its
+implementation instructions plus the folder-scoped GUIDELINES for the files it touches.
 
-**Dispatch goes through the executor seam, `run-agent.sh`** — the single place a concrete
-executor tool is named, so the executor is swappable without touching this doc, the spec
-templates, or the orchestrator's behavior. Any executor behind the seam must satisfy this
+**Dispatch goes through the Junior Engineer seam, `run-agent.sh`** — the single place a concrete
+execution tool is named, so the Junior Engineer is swappable without touching this doc, the
+handoff template, or the Senior Engineer's behavior. Any executor behind the seam must satisfy this
 **contract**:
 
 - **headless** — no TUI; driven by argument/stdin, results to stdout
@@ -134,7 +131,7 @@ templates, or the orchestrator's behavior. Any executor behind the seam must sat
   in the main checkout (outside the worktree) and appended, so the executor cannot delete or
   truncate its own run log during a correction
 - **exit** — `0` when the local gate is green; non-zero (or a "stuck" report) signals escalation
-- **continue** — can resume the same run for a correction, so the orchestrator sends a fix without a cold restart
+- **continue** — can resume the same run for a correction, so the Senior Engineer sends a fix without a cold restart
 
 Current implementation: opencode + a fast code model. Its exact command and tool-specific
 quirks live in `run-agent.sh`, not here — notably that options must precede the directive
@@ -145,6 +142,18 @@ On native Git Bash, verify that provider path end-to-end with
 `bash tests/north-mini-smoke.sh`: it runs the exact seam against
 `north-mini-code-free`, requires an exported tool call and committed sentinel, and leaves
 the isolated worktree/log available when the provider ignores the directive.
+
+The current Junior Engineer assignment is configured at dispatch time, not in the role guide:
+
+```bash
+EXECUTOR_CMD=opencode
+EXECUTOR_MODEL=opencode/north-mini-code-free
+EXECUTOR_AGENT=build
+EXECUTOR_VARIANT=high
+```
+
+These are development defaults. Change the command or model without changing the Product,
+Senior Engineer, or Junior Engineer contracts.
 
 **Isolation.** Every run happens in its own branch or git worktree — never the shared
 working tree. The executor edits files and runs commands unattended (skip-permissions is
@@ -175,7 +184,7 @@ the intended files only.
    Nitpick/lint churn stays here, off CI.
 2. *CI loop (bounded):* after local-green, push a draft PR and read Actions (the Linux
    verdict). A few push→read→fix cycles are fine; a failure that is green locally but
-   red on CI is its own class → straight to the orchestrator.
+   red on CI is its own class → straight to the Senior Engineer.
 
 **Escalate on non-convergence, not first failure.**
 
@@ -184,9 +193,9 @@ the intended files only.
   is a runaway backstop, not the normal trigger).
 - It escalates with a **distilled report** — what was tried, the persistent failure
   signature, its hypothesis — never a transcript.
-- The orchestrator's cheapest reply is a corrected micro-instruction into the *same*
-  run (the executor's continue mechanism). It escalates up to the intent tier only when
-  the implementation cannot satisfy the spec — i.e. the intent-spec itself is wrong.
+- The Senior Engineer's cheapest reply is a corrected micro-instruction into the *same*
+  run (the executor's continue mechanism). Escalate to Product only when the implementation
+  cannot satisfy the issue's intent — i.e. the intent itself is wrong.
 - Gates after green, cheap → costly: local gate → CI → adversarial review → human QA + merge.
 
 ## Common issues & gotchas
